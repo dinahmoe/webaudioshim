@@ -1,0 +1,113 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="author" content="Chris Coniglio, Dinahmoe AB">
+    <meta name="description" content="">
+    <title>web audio shim</title>
+</head>
+<body>
+    <script src="webaudioshim.js"></script>
+    <script>
+    //Audio from: http://www.freesound.org/people/RutgerMuller/sounds/190500/
+    (function (window) {
+        var Context = window.webkitAudioContext || window.AudioContext,
+            format = (function () {
+                var audio = document.createElement("audio"),
+                    format = {
+                        audio: [
+                            {ext: ".ogg", test: 'audio/ogg; codecs="vorbis"'},
+                            {ext: ".aac", test: 'audio/mp4; codecs="mp4a.40.2"'},
+                            {ext: ".mp3", test: 'audio/mpeg;'},
+                            {ext: ".wav", test: 'audio/wav; codecs="1"'}
+                        ]
+                    },
+                    res;
+
+                function canplay (f) {
+                    return !!this.canPlayType(f.test).replace(/^no$/, "") && f.ext;
+                }
+
+                res = format.audio.filter(canplay, audio).shift();
+                return res && res.ext;
+            })(),
+            context;
+        function xhr (opt) {
+            var req = new XMLHttpRequest();
+            req.onreadystatechange = onreadystate(opt.callback);
+            req.onerror = function (error) {
+                opt.callback(error);
+            };
+            req.open("GET", opt.src, true);
+            req.responseType = "arraybuffer";
+            req.send();
+            return req;
+        }
+        function onreadystate (callback) {
+            return function (e) {
+                if (this.readyState === 4) {
+                    this.onreadystatechange = this.onerror = null;
+                    if (this.status >= 200 && this.status < 300 || this.status === 304) {
+                        callback(null, this.response);
+                    } else {
+                        callback("Problem with XHR status");
+                    }
+                }
+            };
+        }
+        function ondecode (buffer) {
+            noteOn(0, buffer);
+            noteGrainOn(buffer.duration + 1, buffer);
+            simpleStart(buffer.duration + 2, buffer);
+            grainStart((buffer.duration + 2) + buffer.duration, buffer);
+        }
+        function makeSource (buffer) {
+            var source = context.createBufferSource();
+            source.buffer = buffer;
+            source.connect(context.destination);
+            return source;
+        }
+        function noteOn (time, buffer) {
+            console.log("calling noteOn");
+            makeSource(buffer).noteOn(context.currentTime + time);
+        }
+        function noteGrainOn (time, buffer) {
+            console.log("calling noteGrainOn");
+            makeSource(buffer).noteGrainOn(time, 1, 1);
+        }
+        function simpleStart (time, buffer) {
+            console.log("start");
+            makeSource(buffer).start(time);
+        }
+        function grainStart (time, buffer) {
+            console.log("start as noteGrainOn");
+            makeSource(buffer).start(time, 1, 1);
+        }
+        if (!Context) {
+            console.log("The web audio API is not supported in this browser.");
+            return;
+        }
+        if (!format) {
+            console.log("Couldn't play any of the desired formats.")
+            return;
+        }
+        context = new Context();
+        context.createDelay();
+        context.createDelayNode();
+        context.createGain();
+        context.createGainNode();
+        context.createJavaScriptNode(256);
+        context.createScriptProcessor(256);
+        xhr({
+            src: "audio/piano" + format,
+            callback: function (err, res) {
+                var onerror = console.error.bind(console, "Can't decode Audio!");
+                if (err) {
+                    onerror();
+                }
+                context.decodeAudioData(res, ondecode, onerror);
+            }
+        });
+    })(this);
+    </script>
+</body>
+</html>
