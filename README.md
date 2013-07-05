@@ -1,3 +1,3 @@
 # Web Audio Shim
 
-Shim to resolve naming conflicts caused by renaming of methods in the web audio context.
+Fixes naming issues of web audio methods between safari, chrome, and firefox nightly.
