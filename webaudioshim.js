@@ -25,10 +25,21 @@
     if (!isFunction(sourceProto.start)) {
         if (isFunction(sourceProto.noteOn)) {
             sourceProto.start = function (when, offset, duration) {
-                if (arguments.length === 1) {
-                    this.noteOn(when);
-                } else if (arguments.length === 3) {
-                    this.noteGrainOn(when, offset, duration);
+                switch (arguments.length) {
+                    case 0:
+                        throw new Error("Not enough arguments.");
+                    case 1:
+                        this.noteOn(when);
+                        break;
+                    case 2:
+                        if (this.buffer) {
+                            this.noteGrainOn(when, offset, this.buffer.duration - offset);
+                        } else {
+                            throw new Error("Missing AudioBuffer");
+                        }
+                        break;
+                    case 3:
+                        this.noteGrainOn(when, offset, duration);
                 }
             };
         }
